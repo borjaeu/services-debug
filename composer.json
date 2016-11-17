@@ -1,7 +1,7 @@
 {
     "name": "kizilare/services-debug",
     "description": "Symfony2 services debugger and graph",
-    "type": "library",
+    "type": "symfony-bundle",
     "authors": [
         {
             "name": "Borja Morales",
@@ -11,5 +11,8 @@
     "autoload": {
         "psr-4": { "Kizilare\\ServicesDebug\\": "" }
     },
-    "require": {}
+    "require": {
+        "php": ">=5.3.3",
+        "symfony/symfony": "2.*"
+    }
 }
