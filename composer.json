@@ -1,0 +1,12 @@
+{
+    "name": "kizilare/services-debug",
+    "description": "Symfony2 services debugger and graph",
+    "type": "library",
+    "authors": [
+        {
+            "name": "Borja Morales",
+            "email": "borjamorales@gmail.com"
+        }
+    ],
+    "require": {}
+}
