@@ -50,13 +50,11 @@ class Graph
     {
         $this->addNode($source);
         $this->addNode($target);
-        if ($source !== $target) {
-            $id = $source . '-' . $target;
-            if (!isset($this->edges[$id])) {
-                $this->edges[$id] = [$source, $target];
-                $this->nodes[$source]++;
-                $this->nodes[$target]++;
-            }
+        $id = $source . '-' . $target;
+        if (!isset($this->edges[$id])) {
+            $this->edges[$id] = [$source, $target];
+            $this->nodes[$source]++;
+            $this->nodes[$target]++;
         }
     }
 

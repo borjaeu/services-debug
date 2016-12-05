@@ -1,205 +1,1 @@
-<?php
-namespace Kizilare\ServicesDebug\Command;
-
-use Kizilare\ServicesDebug\Helper\Dot;
-use Kizilare\ServicesDebug\Helper\Graph;
-use ReflectionClass;
-use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\DependencyInjection\ContainerBuilder;
-use Symfony\Component\DependencyInjection\Definition;
-use Symfony\Component\DependencyInjection\Reference;
-use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;
-use Symfony\Component\Config\FileLocator;
-use Symfony\Component\Filesystem\Filesystem;
-
-class ServicesGraphCommand extends ContainerAwareCommand
-{
-    /**
-     * @var ContainerBuilder
-     */
-    private $containerBuilder;
-
-    /**
-     * @var Graph
-     */
-    protected $graph;
-
-    /**
-     * @var Dot
-     */
-    protected $dot;
-
-    /**
-     * @var OutputInterface
-     */
-    protected $output;
-
-    /**
-     * @var InputInterface
-     */
-    protected $input;
-
-    /**
-     * @var string
-     */
-    private $vendorDirectory;
-
-    /**
-     * @var array
-     */
-    private $namespaces = [];
-
-    /**
-     * {@inheritdoc}
-     */
-    protected function configure()
-    {
-        $this
-            ->setName('graph:services:debug')
-            ->setDescription('Services and classes dependencies path');
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    protected function execute(InputInterface $input, OutputInterface $output)
-    {
-        $rootDir = $this->getContainer()->getParameter('kernel.root_dir');
-        $this->vendorDirectory = realpath($rootDir.'/../src/');
-        $this->output = $output;
-        $this->input = $input;
-        $this->graph = new Graph();
-        $this->dot = new Dot($this->graph);
-        $this->runCommand();
-        $this->writeGraph();
-    }
-
-    /**
-     * {@inheritdoc}
-     */
-    private function runCommand()
-    {
-        $this->getContainerBuilder();
-        $definitions = $this->containerBuilder->getDefinitions();
-        $total = 0;
-        $processed = 0;
-        foreach ($definitions as $id => $definition) {
-            $total++;
-            if (!$this->isVendorService($definition)) {
-                $processed++;
-                $this->addService($definition, $id);
-            }
-        }
-        $this->output->writeln(sprintf('Total %d services found. %d services processed', $total, $processed));
-    }
-
-    /**
-     * @param Definition $definition
-     * @param string $id
-     */
-    private function addService($definition, $id)
-    {
-        $identifier = $this->getBundleNamespace($definition->getClass());
-        if (!isset($this->namespaces[$identifier])) {
-            $this->namespaces[$identifier] = [];
-        }
-        $this->namespaces[$identifier][] = [
-            'id'        => $id,
-            'class'     => $definition->getClass(),
-        ];
-        $this->output->writeln(sprintf('<info>%s</info> %s [%s]', $id, $definition->getClass(), $identifier));
-        $this->graph->addNode($identifier);
-        $arguments = $definition->getArguments();
-        foreach ($arguments as $argument) {
-            if ($argument instanceof Reference) {
-                /** @var Reference $argument */
-                $argumentDefinition = $this->containerBuilder->findDefinition((string) $argument);
-                if (!$this->isVendorService($argumentDefinition)) {
-                    $this->graph->addEdge($identifier, $this->getBundleNamespace($argumentDefinition->getClass()));
-                }
-            }
-        }
-
-        $emptyNodes = $this->graph->getEmptyNodes();
-        foreach ($emptyNodes as $emptyNode) {
-            $this->graph->removeNode($emptyNode);
-        }
-    }
-
-    /**
-     * @param Definition $definition
-     * @return bool
-     */
-    private function isVendorService(Definition $definition)
-    {
-        $className = $definition->getClass();
-        $isVendor = false;
-        try {
-            $reflector = new ReflectionClass($className);
-            if (strpos($reflector->getFileName(), $this->vendorDirectory) !== 0) {
-                $isVendor = true;
-            }
-        } catch (\ReflectionException $exception) {
-            $this->output->writeln(sprintf('<error>Invalid class %s</error>', $className));
-            $isVendor = true;
-        }
-
-        return $isVendor;
-    }
-
-    /**
-     * @param string $namespace
-     * @param int $level
-     * @return string
-     */
-    private function getBundleNamespace($namespace, $level = 3)
-    {
-        $namespace =  preg_replace('/(.*Bundle).*/', '$1', $namespace);
-        $namespace = str_replace('\\', '\\\\', $namespace);
-
-        return $namespace;
-    }
-
-    /**
-     * Loads the ContainerBuilder from the cache.
-     *
-     * @return ContainerBuilder
-     *
-     * @throws \LogicException
-     */
-    protected function getContainerBuilder()
-    {
-        if ($this->containerBuilder) {
-            return $this->containerBuilder;
-        }
-
-        if (!$this->getApplication()->getKernel()->isDebug()) {
-            throw new \LogicException(sprintf('Debug information about the container is only available in debug mode.'));
-        }
-
-        if (!is_file($cachedFile = $this->getContainer()->getParameter('debug.container.dump'))) {
-            throw new \LogicException(sprintf('Debug information about the container could not be found. Please clear the cache and try again.'));
-        }
-
-        $container = new ContainerBuilder();
-
-        $loader = new XmlFileLoader($container, new FileLocator());
-        $loader->load($cachedFile);
-
-        return $this->containerBuilder = $container;
-    }
-
-    /**
-     * Write graph information to file
-     */
-    protected function writeGraph()
-    {
-        $dotCode = $this->dot->getDotCode();
-        $fileSystem = new Filesystem();
-        $fileSystem->dumpFile('services.dot', $dotCode);
-        $this->output->writeln("Built run 'dot services.dot -Tpng -o services.png' to view");
-        shell_exec("dot services.dot -Tpng -o services.png");
-    }
-}
+<?phpnamespace Kizilare\ServicesDebug\Command;use Kizilare\ServicesDebug\Helper\DefinitionHelper;use Kizilare\ServicesDebug\Helper\Dot;use Kizilare\ServicesDebug\Helper\Graph;use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;use Symfony\Component\Console\Input\InputInterface;use Symfony\Component\Console\Input\InputOption;use Symfony\Component\Console\Output\OutputInterface;use Symfony\Component\DependencyInjection\ContainerBuilder;use Symfony\Component\DependencyInjection\Definition;use Symfony\Component\DependencyInjection\Reference;use Symfony\Component\DependencyInjection\Loader\XmlFileLoader;use Symfony\Component\Config\FileLocator;use Symfony\Component\Filesystem\Filesystem;use Symfony\Component\Yaml\Yaml;class ServicesGraphCommand extends ContainerAwareCommand{    /**     * @var ContainerBuilder     */    private $containerBuilder;    /**     * @var Graph     */    private $graph;    /**     * @var Dot     */    private $dot;    /**     * @var OutputInterface     */    private $output;    /**     * @var bool     */    private $executeConverion;    /**     * @var array     */    private $ignoredServices;    /**     * @var array     */    private $debug = [        'services' => [],        'edges' => [],    ];    /**     * @var DefinitionHelper     */    private $definitionHelper;    /**     * {@inheritdoc}     */    protected function configure()    {        $this            ->setName('graph:services:debug')            ->addOption('convert', null, InputOption::VALUE_NONE, 'The dot command convert to png shall be executed')            ->addOption('skip', null, InputOption::VALUE_REQUIRED, 'Services that will ignored', 'service_container,http_kernel,request,kernel')            ->setDescription('Services and classes dependencies path');    }    /**     * {@inheritdoc}     */    protected function execute(InputInterface $input, OutputInterface $output)    {        $rootDir = $this->getContainer()->getParameter('kernel.root_dir');        $this->output = $output;        $this->executeConverion = $input->getOption('convert');        $this->ignoredServices = explode(',', $input->getOption('skip'));        $this->graph = new Graph();        $this->dot = new Dot($this->graph);        $this->definitionHelper = new DefinitionHelper($this->graph);        $this->definitionHelper->setVendorDirectory(realpath($rootDir.'/../vendor/'));        $this->runCommand();        $this->clearIsolatedNodes();        $this->writeGraph();        $this->writeDebug();    }    /**     * {@inheritdoc}     */    private function runCommand()    {        $this->getContainerBuilder();        $definitions = $this->containerBuilder->getDefinitions();        $total = 0;        $processed = 0;        $this->output->writeln(sprintf('Total %d definitions found.', count($definitions)));        foreach ($definitions as $serviceId => $definition) {            $total++;            if ($this->isAllowedDefinition($serviceId, $definition)) {                $processed++;                $this->addService($serviceId, $definition);            }        }        $this->output->writeln(sprintf('Total %d services found. %d services processed', $total, $processed));    }    /**     * @param string $serviceId     * @param Definition $definition     */    private function addService($serviceId, Definition $definition)    {        $identifier = $this->definitionHelper->getDefinitionIdentifier($definition);        $this->registerService($serviceId, $definition, $identifier);        $this->graph->addNode($identifier);        $arguments = $definition->getArguments();        $this->output->writeln(sprintf('<info>@%s</info> [%s]', $serviceId, $identifier));        foreach ($arguments as $argument) {            if ($argument instanceof Reference) {                /** @var Reference $argument */                $argumentDefinition = $this->containerBuilder->findDefinition((string) $argument);                if ($this->isAllowedDefinition($argument, $argumentDefinition)) {                    $targetIdentifier = $this->definitionHelper->getDefinitionIdentifier($argumentDefinition);                    $this->addEdge($serviceId, $identifier, $targetIdentifier);                    $this->output->writeln(sprintf('    - @%s [%s]', $argument, $targetIdentifier));                }            }        }    }    /**     * @param string $serviceId     * @param Definition $definition     * @return bool     */    private function isAllowedDefinition($serviceId, Definition $definition)    {        if (in_array($serviceId, $this->ignoredServices)) {            return false;        }        if ($this->definitionHelper->getVendorName($definition)) {            return false;        }        return true;    }    /**     * Loads the ContainerBuilder from the cache.     *     * @return ContainerBuilder     *     * @throws \LogicException     */    private function getContainerBuilder()    {        if ($this->containerBuilder) {            return $this->containerBuilder;        }        if (!$this->getApplication()->getKernel()->isDebug()) {            throw new \LogicException(sprintf('Debug information about the container is only available in debug mode.'));        }        if (!is_file($cachedFile = $this->getContainer()->getParameter('debug.container.dump'))) {            throw new \LogicException(sprintf('Debug information about the container could not be found. Please clear the cache and try again.'));        }        $container = new ContainerBuilder();        $loader = new XmlFileLoader($container, new FileLocator());        $loader->load($cachedFile);        return $this->containerBuilder = $container;    }    /**     * Write graph information to file     */    private function writeGraph()    {        $dotCode = $this->dot->getDotCode();        $fileSystem = new Filesystem();        $fileSystem->dumpFile('services.dot', $dotCode);        $command = 'dot services.dot -Tpng -o services.png';        $this->output->writeln("Built run '$command' to view");        if (!$this->executeConverion) {            shell_exec($command);        }    }    private function clearIsolatedNodes()    {        $emptyNodes = $this->graph->getEmptyNodes();        foreach ($emptyNodes as $emptyNode) {            $this->graph->removeNode($emptyNode);        }    }    /**     * @param string $serviceId     * @param string $source     * @param string $target     */    private function addEdge($serviceId, $source, $target)    {        $edgeId = $source . ' -> ' . $target;        if (!isset($this->debug['edges'][$edgeId])) {            $this->debug['edges'][$edgeId] = [];        }        $this->debug['edges'][$edgeId][] = $serviceId;        $this->graph->addEdge($source, $target);        $this->dot->setEdgeOptions($source, $target, ['label' => 'x' . count($this->debug['edges'][$edgeId])]);    }    /**     * @param $serviceId     * @param Definition $definition     * @param $identifier     */    private function registerService($serviceId, Definition $definition, $identifier)    {        if (!isset($this->debug['services'][$identifier])) {            $this->debug['services'][$identifier] = [];        }        $this->debug['services'][$identifier][$serviceId] = $definition->getClass();    }    private function writeDebug()    {        $debug = Yaml::dump($this->debug, 4);        $fileSystem = new Filesystem();        $fileSystem->dumpFile('services_debug.yml', $debug);    }}
