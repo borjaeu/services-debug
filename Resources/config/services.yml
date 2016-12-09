@@ -1,0 +1,4 @@
+services:
+    test:
+        class: Kizilare\ServicesDebug\Processor\FileParser
+
