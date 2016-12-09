@@ -8,24 +8,19 @@ class FileParser
     const LINE = 2;
 
     /**
-     * @var string
-     */
-    private $status;
-
-    /**
-     * @var string
-     */
-    private $type;
-
-    /**
      * @var array
      */
     private $metadata;
 
     /**
-     * @var string
+     * @var array
      */
-    private $buffer = '';
+    private $tokens;
+
+    /**
+     * @var int
+     */
+    private $index = 0;
 
     /**
      * @param string $code
@@ -38,152 +33,154 @@ class FileParser
             'import' => [],
             'methods' => [],
         ];
-        $this->status = 'File';
+        $this->tokens = [];
         $tokens = token_get_all($code);
         foreach ($tokens as $token) {
             if (is_array($token)) {
-                $this->processToken($token);
+                $this->tokens[] = $token;
             }
         }
-    }
-
-    /**
-     * @param array $token
-     */
-    private function processToken(array $token)
-    {
-        switch ($this->status) {
-            case 'File':
-                $this->processFileToken($token);
-                break;
-            case 'Namespace':
-                $this->processNamespaceToken($token);
-                break;
-            case 'Import':
-                $this->processImportToken($token);
-                break;
-            case 'Class':
-                $this->processClassToken($token);
-                break;
-            case 'Method':
-                $this->processMethodToken($token);
-                break;
-            default:
-                throw new \UnexpectedValueException("Invalid '{$this->status}' value found for status");
+        while ($this->next()) {
+            $this->processToken();
         }
     }
 
     /**
-     * @param array $token
+     * @return array
      */
-    private function processFileToken(array $token)
+    public function getMetadata(): array
     {
-        switch ($token[self::TOKEN]) {
+        return $this->metadata;
+    }
+
+    private function next($step = 1)
+    {
+        $this->index += $step;
+
+        return $this->index >= count($this->tokens) ? false : true;
+    }
+
+    private function prev()
+    {
+        $this->index--;
+    }
+
+    private function getTokenType()
+    {
+        return $this->tokens[$this->index][self::TOKEN];
+    }
+
+    private function getTokenName()
+    {
+        return token_name($this->tokens[$this->index][self::TOKEN]);
+    }
+
+    private function getTokenLine()
+    {
+        return $this->tokens[$this->index][self::LINE];
+    }
+
+    private function getTokenCode()
+    {
+        return $this->tokens[$this->index][self::CODE];
+    }
+
+    private function processToken()
+    {
+        switch ($this->getTokenType()) {
             case T_NAMESPACE:
-                $this->moveTo('Namespace');
+                $this->metadata['namespace'] = $this->getInfo([T_STRING, T_NS_SEPARATOR], [T_WHITESPACE]);
                 break;
             case T_USE:
-                $this->moveTo('Import');
+                $this->metadata['import'][] = $this->getInfo([T_STRING, T_NS_SEPARATOR], [T_WHITESPACE]);
                 break;
             case T_CLASS:
-                $this->moveTo('Class');
+                $this->metadata['class'] = $this->getInfo([T_STRING], [T_WHITESPACE]);
+                break;
+            case T_OBJECT_OPERATOR:
+                $this->processCall();
                 break;
             case T_FUNCTION:
-                $this->moveTo('Method');
-                break;
             case T_PUBLIC:
-                $this->moveTo('Method');
-                $this->type = 'Public';
+                $this->processMethod();
+                break;
+            case T_WHITESPACE:
                 break;
             default:
-                $this->debugToken($token, 'File, nothing to do');
+                $this->debugToken('File, nothing to do');
         }
     }
 
     /**
-     * @param array $token
-     */
-    private function processNamespaceToken(array $token)
-    {
-        if (in_array($token[self::TOKEN], [T_STRING, T_NS_SEPARATOR])) {
-            $this->buffer .= $token[self::CODE];
-        } elseif ($token[self::TOKEN] !== T_WHITESPACE) {
-            $this->metadata['namespace'] = $this->getBuffer();
-            $this->status = 'File';
-        }
-    }
-
-    /**
-     * @param array $token
-     */
-    private function processImportToken(array $token)
-    {
-        if (in_array($token[self::TOKEN], [T_STRING, T_NS_SEPARATOR])) {
-            $this->buffer .= $token[self::CODE];
-        } elseif (in_array($token[self::TOKEN], [T_WHITESPACE, T_USE]) && $this->buffer) {
-            $this->metadata['import'][] = $this->getBuffer();
-        } elseif (!in_array($token[self::TOKEN], [T_WHITESPACE, T_USE])) {
-            $this->debugToken($token, 'Finished import');
-            $this->moveTo('File');
-            $this->processFileToken($token);
-        }
-    }
-
-    /**
-     * @param array $token
-     */
-    private function processClassToken(array $token)
-    {
-        if ($token[self::TOKEN] !== T_STRING && $this->buffer) {
-            $this->metadata['class'] = $this->getBuffer();
-            $this->debugToken($token, 'Finished class');
-            $this->moveTo('File');
-        } elseif ($token[self::TOKEN] == T_STRING) {
-            $this->buffer .= $token[self::CODE];
-        } elseif ($token[self::TOKEN] !== T_WHITESPACE) {
-            $this->debugToken($token, 'Finished class');
-            $this->moveTo('File');
-        }
-    }
-    /**
-     * @param array $token
-     */
-    private function processMethodToken(array $token)
-    {
-        if ($token[self::TOKEN] !== T_STRING && $this->buffer) {
-            $this->metadata['methods'][$this->type][] = $this->getBuffer();
-            $this->debugToken($token, 'Finished method');
-            $this->moveTo('File');
-        } elseif ($token[self::TOKEN] == T_STRING) {
-            $this->buffer .= $token[self::CODE];
-        } elseif ($token[self::TOKEN] !== T_WHITESPACE) {
-            $this->debugToken($token, 'Finished method no buffer');
-            $this->status = 'File';
-            $this->processFileToken($token);
-        }
-    }
-
-    private function debugToken(array $token, $message)
-    {
-        if ($token[self::LINE] > 203 && $token[self::LINE] < 220) {
-            printf('%s: %s [%s] %s %s', $token[self::LINE], $message, token_name($token[self::TOKEN]), $token[self::CODE], PHP_EOL);
-        }
-    }
-
-    /**
+     * @param array $infoTokens
+     * @param array $allowedTokens
      * @return string
      */
-    private function getBuffer()
+    private function getInfo(array $infoTokens, array $allowedTokens)
     {
-        $buffer = $this->buffer;
-        $this->buffer = '';
+        $info = '';
+        while ($this->next()) {
+            if (in_array($this->getTokenType(), $infoTokens)) {
+                $info .= $this->getTokenCode();
+            } elseif (!in_array($this->getTokenType(), $infoTokens) && $info) {
+                $this->prev();
+                break;
+            } elseif (!in_array($this->getTokenType(), $allowedTokens)) {
+                break;
+            }
+        }
 
-        return $buffer;
+        return $info;
     }
 
-    private function moveTo($status)
+    private function processMethod()
     {
-        printf('Moving to %s%s', $status, PHP_EOL);
-        $this->status = $status;
+        $visibility = 'public';
+        $name = '';
+        $finished = false;
+        $this->prev();
+        while ($this->next() && !$finished) {
+            switch ($this->getTokenType()) {
+                case T_STRING:
+                    $name = $this->getTokenCode();
+                    $finished = true;
+                    break;
+                case T_FUNCTION:
+                case T_WHITESPACE:
+                    break;
+                case T_PUBLIC:
+                    $visibility = 'public';
+                    break;
+                default:
+                    $this->debugToken('Processing method name');
+            }
+        }
+
+        $this->metadata['methods'][$visibility][] = $name;
+    }
+
+    private function processCall()
+    {
+        $this->prev();
+        if ($this->getTokenCode() !== '$this') {
+            $call = [
+                'line' => $this->getTokenLine(),
+                'variable' => $this->getTokenCode(),
+            ];
+            $this->debugToken('From this...');
+            $this->next(2);
+            $this->debugToken(' ...this is called');
+            $call['method'] = $this->getTokenCode();
+            $this->metadata['calls'][] = $call;
+        } else {
+            $this->next(2);
+        }
+    }
+
+    private function debugToken($message)
+    {
+        if ($this->getTokenLine() > 195 && $this->getTokenLine() < 208) {
+            printf('%s: %s [%s] %s %s', $this->getTokenLine(), $message, $this->getTokenName(), $this->getTokenCode(), PHP_EOL);
+        }
     }
 }
