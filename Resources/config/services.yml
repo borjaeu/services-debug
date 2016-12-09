@@ -1,4 +1,13 @@
 services:
-    test:
-        class: Kizilare\ServicesDebug\Processor\FileParser
+    kizilare.services_processor:
+        class: Kizilare\ServicesDebug\Processor\ServicesProcessor
+        arguments:
+          - '%debug.container.dump%'
+          - '@kizilare.definition_helper'
+
+
+    kizilare.definition_helper:
+        class: Kizilare\ServicesDebug\Helper\DefinitionHelper
+        arguments:
+          - '%kernel.root_dir%'
 

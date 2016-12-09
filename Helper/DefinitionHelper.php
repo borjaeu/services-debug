@@ -12,6 +12,14 @@ class DefinitionHelper
     private $vendorDirectory;
 
     /**
+     * @param string $rootDir
+     */
+    public function __construct($rootDir)
+    {
+        $this->vendorDirectory = realpath($rootDir.'/../vendor/');
+    }
+
+    /**
      * @param string $vendorDirectory
      */
     public function setVendorDirectory(string $vendorDirectory)
