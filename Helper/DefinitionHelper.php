@@ -20,14 +20,6 @@ class DefinitionHelper
     }
 
     /**
-     * @param string $vendorDirectory
-     */
-    public function setVendorDirectory(string $vendorDirectory)
-    {
-        $this->vendorDirectory = $vendorDirectory;
-    }
-
-    /**
      * @param Definition $definition
      * @return string
      */

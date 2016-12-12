@@ -4,8 +4,10 @@ services:
         arguments:
           - '%debug.container.dump%'
           - '@kizilare.definition_helper'
-
-
+    kizilare.source_processor:
+        class: Kizilare\ServicesDebug\Processor\SourceProcessor
+        arguments:
+          - '%kernel.root_dir%'
     kizilare.definition_helper:
         class: Kizilare\ServicesDebug\Helper\DefinitionHelper
         arguments:

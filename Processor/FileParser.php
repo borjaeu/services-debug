@@ -32,6 +32,7 @@ class FileParser
             'class' => '',
             'import' => [],
             'methods' => [],
+            'calls'     => [],
         ];
         $this->tokens = [];
         $tokens = token_get_all($code);
@@ -180,7 +181,7 @@ class FileParser
     private function debugToken($message)
     {
         if ($this->getTokenLine() > 195 && $this->getTokenLine() < 208) {
-            printf('%s: %s [%s] %s %s', $this->getTokenLine(), $message, $this->getTokenName(), $this->getTokenCode(), PHP_EOL);
+            //printf('%s: %s [%s] %s %s', $this->getTokenLine(), $message, $this->getTokenName(), $this->getTokenCode(), PHP_EOL);
         }
     }
 }
