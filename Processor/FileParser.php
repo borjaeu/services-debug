@@ -153,10 +153,12 @@ class FileParser
      */
     private function getInfo(array $infoTokens, array $allowedTokens)
     {
+        $lastToken = 0;
         $info = '';
         while ($this->next()) {
-            if (in_array($this->getTokenType(), $infoTokens)) {
+            if (in_array($this->getTokenType(), $infoTokens) && $this->getTokenType() !== $lastToken) {
                 $info .= $this->getTokenCode();
+                $lastToken = $this->getTokenType();
             } elseif (!in_array($this->getTokenType(), $infoTokens) && $info) {
                 $this->prev();
                 break;
@@ -244,14 +246,14 @@ class FileParser
         $alias = array_shift($chunks);
         if (empty($alias)) {
             $this->metadata['import'][] = $namespace;
-            //echo "[FileParser] Usage $namespace with no alias" . PHP_EOL;
-
         } else if (isset($this->aliases[$alias])) {
             $this->metadata['import'][] = $this->aliases[$alias] . '\\' . implode('\\', $chunks);
+            while($key = array_search($this->aliases[$alias], $this->metadata['import'])) {
+                unset($this->metadata['import'][$key]);
+            }
         } else {
             $left = implode('\\', $chunks);
             $this->metadata['import'][] = $left;
-            //echo "[FileParser] Usage $namespace with alias $alias that it not imported. Maybe $left instead?" . PHP_EOL;
         }
     }
 }

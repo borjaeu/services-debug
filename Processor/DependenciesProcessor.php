@@ -56,6 +56,15 @@ class DependenciesProcessor
         }
 
         foreach ($info['dependencies'][$type] as $className) {
+            if (!isset($this->dependencies[$className]['group'])) {
+                var_dump($className);
+                exit;
+            }
+            if (!isset($info['group'])) {
+                var_dump($info);
+                var_dump($source);
+                exit;
+            }
             $id = $info['group'] . ' -> ' . $this->dependencies[$className]['group'];
             $this->reverseDependencies[$id][] = $source . ' by ' . $type . ' ' . $className;
         }

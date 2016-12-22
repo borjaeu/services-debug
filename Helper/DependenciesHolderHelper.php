@@ -49,12 +49,12 @@ class DependenciesHolderHelper
     /**
      * @var array
      */
-    private $missingGroups = [];
+    private $missingFiles = [];
 
     /**
-     * @var array
+     * @var ConfigurationHelper
      */
-    private $missingFiles = [];
+    private $configuration;
 
     /**
      * @param string $rootDir
@@ -63,6 +63,14 @@ class DependenciesHolderHelper
     {
         $this->vendorDirectory = realpath($rootDir.'/../vendor/');
         $this->reflectionHelper = $reflectionHelper;
+    }
+
+    /**
+     * @param ConfigurationHelper $configuration
+     */
+    public function setConfiguration(ConfigurationHelper $configuration)
+    {
+        $this->configuration = $configuration;
     }
 
     public function load($file)
@@ -91,20 +99,12 @@ class DependenciesHolderHelper
         try {
             list($targetType, $targetGroup) = $this->getGroup($target);
             $file = $this->reflectionHelper->getClassFilename($target);
-            if (empty($file) && !in_array($target, $this->missingFiles)) {
-                $this->missingFiles[] = $target;
-                throw new \UnexpectedValueException("[Dependencies] File not found $target for $source");
-            } else {
-                $this->dependencies[$source]['dependencies'][$dependencyType][] = $target;
-                $this->dependencies[$target]['file'] = $this->trimFile($file);
-                $this->dependencies[$target]['type'] = $targetType;
-                $this->dependencies[$target]['group'] = $targetGroup;
-            }
+            $this->dependencies[$source]['dependencies'][$dependencyType][] = $target;
+            $this->dependencies[$target]['file'] = $this->trimFile($file);
+            $this->dependencies[$target]['type'] = $targetType;
+            $this->dependencies[$target]['group'] = $targetGroup;
         } catch (\Exception $exception) {
-            if (!in_array($target, $this->missingGroups)) {
-                throw new \UnexpectedValueException("[Dependencies] Group not found for $target in $source", 0, $exception);
-                $this->missingGroups[] = $target;
-            }
+            throw new \UnexpectedValueException("[Dependencies] Group not found for $target in $source", 0, $exception);
         }
     }
 
@@ -155,8 +155,9 @@ class DependenciesHolderHelper
      */
     private function getVendorName($className)
     {
-        if (in_array($className, $this->symfonyCachedClasses)) {
-            return 'symfony/symfony';
+        $vendorName = $this->configuration->get('services.alias.' . $className, false);
+        if ($vendorName) {
+            return $vendorName;
         }
 
         return $this->reflectionHelper->getVendorName($className);

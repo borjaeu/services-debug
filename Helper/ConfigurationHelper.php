@@ -23,6 +23,16 @@ class ConfigurationHelper
         $this->configuration = $configuration;
     }
 
+    public function get($field, $default = null)
+    {
+        $value = $this->findValue($field);
+        if (is_null($value)) {
+            $value = $this->handleDefault($field, $default);
+        }
+
+        return $value;
+    }
+
     public function getArray($field, $default = null)
     {
         $values = $this->findValue($field);

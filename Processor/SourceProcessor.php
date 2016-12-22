@@ -45,22 +45,31 @@ class SourceProcessor
 
     private function loadMethods()
     {
+        $ignoreSingleClasses = $this->configuration->get('ignore_simple_classes', false);
+
         $finder = new Finder();
-        $finder->files()->name('*.php')->in($this->rootDirectory . DIRECTORY_SEPARATOR . $this->configuration->getSource());
-        foreach ($this->configuration->getIgnoredDirs() as $dir) {
+        $finder->files()->name('*.php')->in($this->rootDirectory . DIRECTORY_SEPARATOR . $this->configuration->get('source'));
+        foreach ($this->configuration->getArray('ignored_dirs') as $dir) {
             $finder->exclude($dir);
         }
+        $total = $finder->count();
+        $count = 0;
         /** @var File $file */
         foreach ($finder as $file) {
             $fileInfo = new FileParser(file_get_contents($file->getRealPath()));
+            echo $count++ . '/' . $total . ' ' . $file->getRealPath() . PHP_EOL;
             $metadata = $fileInfo->getMetadata();
             foreach ($metadata['import'] as $class) {
                 if (empty($class)) {
                     print_r($metadata);
                 }
+                $class = ltrim($class, '\\');
                 if (empty($metadata['class'])) {
                     print_r($metadata);
                     throw new \UnexpectedValueException("Unexpected class for " . $file->getRealPath());
+                }
+                if ($ignoreSingleClasses && strpos($class, '\\') === false) {
+                    continue;
                 }
                 $this->dependenciesHolder->add(
                     $metadata['namespace'] . '\\' . $metadata['class'],
