@@ -40,10 +40,10 @@ class SourceProcessor
     {
         $this->configuration = $configuration;
         $this->dependenciesHolder = $dependenciesHolder;
-        $this->loadMethods();
+        $this->loadImports();
     }
 
-    private function loadMethods()
+    private function loadImports()
     {
         $ignoreSingleClasses = $this->configuration->get('ignore_simple_classes', false);
 
@@ -73,8 +73,7 @@ class SourceProcessor
                 }
                 $this->dependenciesHolder->add(
                     $metadata['namespace'] . '\\' . $metadata['class'],
-                    $class,
-                    DependenciesHolderHelper::IMPORT
+                    $class
                 );
             }
         }

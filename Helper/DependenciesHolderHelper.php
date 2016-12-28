@@ -8,33 +8,8 @@ use Symfony\Component\Yaml\Yaml;
 
 class DependenciesHolderHelper
 {
-    const INJECTION = 'injection';
-    const IMPORT = 'import';
-
     const TYPE_VENDOR = 'vendor';
     const TYPE_BUNDLE = 'bundle';
-
-    private $symfonyCachedClasses = [
-        'Symfony\Component\DependencyInjection\ContainerInterface',
-        'Symfony\Component\HttpFoundation\Request',
-        'Symfony\Component\HttpFoundation\Response',
-        'Symfony\Component\HttpKernel\Bundle\Bundle',
-        'Symfony\Component\DependencyInjection\ContainerAwareInterface',
-        'Symfony\Component\HttpKernel\HttpKernelInterface',
-        'Symfony\Component\DependencyInjection\Container',
-        'Symfony\Component\HttpKernel\HttpKernel',
-    ];
-
-    private $ignoredImports = [
-        'Exception',
-        '\Exception',
-        'InvalidArgumentException',
-        'DateTime',
-        'ReflectionClass',
-        'ReflectionMethod',
-        'ArrayAccess',
-        '\ArrayAccess',
-    ];
 
     /**
      * @var array
@@ -45,11 +20,6 @@ class DependenciesHolderHelper
      * @var string
      */
     private $vendorDirectory;
-
-    /**
-     * @var array
-     */
-    private $missingFiles = [];
 
     /**
      * @var ConfigurationHelper
@@ -81,13 +51,9 @@ class DependenciesHolderHelper
     /**
      * @param string $source
      * @param string $target
-     * @param string $dependencyType
      */
-    public function add($source, $target, $dependencyType)
+    public function add($source, $target)
     {
-        if (in_array($target, $this->ignoredImports)) {
-            return;
-        }
         $this->dependencies[$source]['file'] = $this->trimFile($this->reflectionHelper->getClassFilename($source));
         try {
             list($sourceType, $sourceGroup) = $this->getGroup($source);
@@ -99,7 +65,7 @@ class DependenciesHolderHelper
         try {
             list($targetType, $targetGroup) = $this->getGroup($target);
             $file = $this->reflectionHelper->getClassFilename($target);
-            $this->dependencies[$source]['dependencies'][$dependencyType][] = $target;
+            $this->dependencies[$source]['dependencies'][] = $target;
             $this->dependencies[$target]['file'] = $this->trimFile($file);
             $this->dependencies[$target]['type'] = $targetType;
             $this->dependencies[$target]['group'] = $targetGroup;

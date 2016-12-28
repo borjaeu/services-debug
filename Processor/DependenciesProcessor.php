@@ -3,8 +3,6 @@ namespace Kizilare\ServicesDebug\Processor;
 
 use Kizilare\ServicesDebug\Helper\ConfigurationHelper;
 use Kizilare\ServicesDebug\Helper\DependenciesHolderHelper;
-use Kizilare\ServicesDebug\Helper\Dot;
-use Kizilare\ServicesDebug\Helper\Graph;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Yaml\Yaml;
 
@@ -28,7 +26,6 @@ class DependenciesProcessor
     /**
      * @param ConfigurationHelper $configuration
      * @param DependenciesHolderHelper $dependenciesHolder
-     * @return array
      */
     public function build(ConfigurationHelper $configuration, DependenciesHolderHelper $dependenciesHolder)
     {
@@ -44,19 +41,21 @@ class DependenciesProcessor
     private function processDependencies()
     {
         foreach ($this->dependencies as $className => $info) {
-            $this->addDependencies($className, $info, 'import');
-            $this->addDependencies($className, $info, 'injection');
+            $this->addDependencies($className, $info);
         }
     }
 
-    private function addDependencies($source, array $info, $type)
+    private function addDependencies($source, array $info)
     {
-        if (!isset($info['dependencies'][$type])) {
+        if (!isset($info['dependencies'])) {
             return;
         }
-
-        foreach ($info['dependencies'][$type] as $className) {
+        foreach ($info['dependencies'] as $className) {
             if (!isset($this->dependencies[$className]['group'])) {
+                var_dump($className);
+                exit;
+            }
+            if (!isset($this->dependencies[$className]['file'])) {
                 var_dump($className);
                 exit;
             }
@@ -65,15 +64,65 @@ class DependenciesProcessor
                 var_dump($source);
                 exit;
             }
-            $id = $info['group'] . ' -> ' . $this->dependencies[$className]['group'];
-            $this->reverseDependencies[$id][] = $source . ' by ' . $type . ' ' . $className;
+            if ($info['group'] != $this->dependencies[$className]['group']) {
+                $sourceGroup = $info['group'];
+                $target = $this->dependencies[$className]['group'];
+                $this->reverseDependencies[$sourceGroup][$target][] = [
+                    'source' => $source,
+                    'target' => $className,
+                    'file' => $info['file'],
+                ];
+            }
         }
     }
 
     public function writeToFile()
     {
-        $debug = Yaml::dump($this->reverseDependencies, 4);
+        $html = <<<HTML
+<!DOCTYPE>
+<html>
+<head>
+<title>Dependencies reversed</title>
+<style>
+    * { font-family:courier,monospace; font-size:11px; }
+    h2 { background-color: lightgrey; }
+</style>
+</head>
+<body>
+HTML;
+        foreach ($this->reverseDependencies as $source => $targets) {
+            $html .= <<<HTML
+<h2>$source</h2>
+
+HTML;
+            foreach ($targets as $target => $dependencies) {
+                $html .= <<<HTML
+<h3>$target</h3>
+<ul>
+
+HTML;
+                foreach ($dependencies as $dependency) {
+                    $html .= <<<HTML
+    <li>{$dependency['target']} in <a href="phpstorm://open?file=/Users/user/local-env/backend/unicorn/{$dependency['file']}">{$dependency['source']}</a></li>
+
+HTML;
+                }
+                $html .= <<<HTML
+</ul>
+
+HTML;
+
+            }
+        }
+
+        $html .= <<<HTML
+
+</body>
+</html>
+HTML;
+
+
         $fileSystem = new Filesystem();
-        $fileSystem->dumpFile('dependencies_reversed.yml', $debug);
+        $fileSystem->dumpFile('dependencies_reversed.html', $html);
     }
 }
