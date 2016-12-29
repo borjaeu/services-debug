@@ -40,7 +40,7 @@ class DependenciesProcessor
      */
     private function processDependencies()
     {
-        foreach ($this->dependencies as $className => $info) {
+        foreach ($this->dependencies['source'] as $className => $info) {
             $this->addDependencies($className, $info);
         }
     }
@@ -50,27 +50,17 @@ class DependenciesProcessor
         if (!isset($info['dependencies'])) {
             return;
         }
-        foreach ($info['dependencies'] as $className) {
-            if (!isset($this->dependencies[$className]['group'])) {
-                var_dump($className);
-                exit;
-            }
-            if (!isset($this->dependencies[$className]['file'])) {
-                var_dump($className);
-                exit;
-            }
+        foreach ($info['dependencies'] as $targetGroup) {
             if (!isset($info['group'])) {
                 var_dump($info);
                 var_dump($source);
                 exit;
             }
-            if ($info['group'] != $this->dependencies[$className]['group']) {
+            if ($info['group'] != $targetGroup) {
                 $sourceGroup = $info['group'];
-                $target = $this->dependencies[$className]['group'];
-                $this->reverseDependencies[$sourceGroup][$target][] = [
+                $this->reverseDependencies[$sourceGroup][$targetGroup][] = [
                     'source' => $source,
-                    'target' => $className,
-                    'file' => $info['file'],
+                    'target' => $targetGroup,
                 ];
             }
         }
@@ -107,7 +97,7 @@ HTML;
 HTML;
                 foreach ($dependencies as $dependency) {
                     $html .= <<<HTML
-        <li>{$dependency['target']} in <a href="phpstorm://open?file=/Users/user/local-env/backend/unicorn/{$dependency['file']}">{$dependency['source']}</a></li>
+        <li>{$dependency['target']} in {$dependency['source']}</li>
 
 HTML;
                 }
@@ -129,8 +119,6 @@ HTML;
 </body>
 </html>
 HTML;
-
-
         $fileSystem = new Filesystem();
         $fileSystem->dumpFile('dependencies_reversed.html', $html);
     }

@@ -1,26 +1,18 @@
 services:
-    kizilare.services_processor:
-        class: Kizilare\ServicesDebug\Processor\ServicesProcessor
-        arguments:
-          - '%debug.container.dump%'
-          - '@kizilare.reflection_helper'
     kizilare.source_processor:
         class: Kizilare\ServicesDebug\Processor\SourceProcessor
+        arguments:
+          - '%kernel.root_dir%'
+    kizilare.vendor_processor:
+        class: Kizilare\ServicesDebug\Processor\VendorProcessor
         arguments:
           - '%kernel.root_dir%'
     kizilare.methods_processor:
         class: Kizilare\ServicesDebug\Processor\MethodsProcessor
         arguments:
           - '%kernel.root_dir%'
-    kizilare.reflection_helper:
-        class: Kizilare\ServicesDebug\Helper\ReflectionHelper
-        arguments:
-          - '%kernel.root_dir%'
     kizilare.dependency_holder:
         class: Kizilare\ServicesDebug\Helper\DependenciesHolderHelper
-        arguments:
-          - '%kernel.root_dir%'
-          - '@kizilare.reflection_helper'
     kizilare.graph_processor:
         class: Kizilare\ServicesDebug\Processor\GraphProcessor
     kizilare.dependencies_processor:

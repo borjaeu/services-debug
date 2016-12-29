@@ -8,18 +8,13 @@ use Symfony\Component\Yaml\Yaml;
 
 class DependenciesHolderHelper
 {
-    const TYPE_VENDOR = 'vendor';
-    const TYPE_BUNDLE = 'bundle';
-
     /**
      * @var array
      */
-    private $dependencies;
-
-    /**
-     * @var string
-     */
-    private $vendorDirectory;
+    private $dependencies = [
+        'source' => [],
+        'vendor' => [],
+    ];
 
     /**
      * @var ConfigurationHelper
@@ -27,13 +22,9 @@ class DependenciesHolderHelper
     private $configuration;
 
     /**
-     * @param string $rootDir
+     * @var array
      */
-    public function __construct($rootDir, ReflectionHelper $reflectionHelper)
-    {
-        $this->vendorDirectory = realpath($rootDir.'/../vendor/');
-        $this->reflectionHelper = $reflectionHelper;
-    }
+    private $namespaceToVendor = [];
 
     /**
      * @param ConfigurationHelper $configuration
@@ -54,24 +45,42 @@ class DependenciesHolderHelper
      */
     public function add($source, $target)
     {
-        $this->dependencies[$source]['file'] = $this->trimFile($this->reflectionHelper->getClassFilename($source));
         try {
-            list($sourceType, $sourceGroup) = $this->getGroup($source);
-            $this->dependencies[$source]['group'] = $sourceGroup;
-            $this->dependencies[$source]['type'] = $sourceType;
+            $sourceGroup = $this->getGroup($source);
+            $this->dependencies['source'][$source]['group'] = $sourceGroup;
         } catch (\Exception $exception) {
             echo "[Dependencies] Source $source" . PHP_EOL;
         }
         try {
-            list($targetType, $targetGroup) = $this->getGroup($target);
-            $file = $this->reflectionHelper->getClassFilename($target);
-            $this->dependencies[$source]['dependencies'][] = $target;
-            $this->dependencies[$target]['file'] = $this->trimFile($file);
-            $this->dependencies[$target]['type'] = $targetType;
-            $this->dependencies[$target]['group'] = $targetGroup;
+            $targetGroup = $this->getGroup($target);
+            $this->dependencies['source'][$source]['dependencies'][] = $targetGroup;
+            $this->dependencies['source'][$source]['dependencies'] = array_values(array_unique($this->dependencies['source'][$source]['dependencies']));
         } catch (\Exception $exception) {
             throw new \UnexpectedValueException("[Dependencies] Group not found for $target in $source", 0, $exception);
         }
+    }
+
+    /**
+     * @param string $source
+     * @param string $target
+     */
+    public function addVendorRequirement($source, $target)
+    {
+        if (!in_array($target, ['php'])) {
+            $this->dependencies['vendor'][$source]['requires'][] = $target;
+        }
+    }
+
+    /**
+     * @param string $source
+     * @param string $namespace
+     */
+    public function addVendorNamespace($source, $namespace)
+    {
+        $namespace = ltrim($namespace, '\\');
+        $this->dependencies['vendor'][$source]['namespaces'][] = $namespace;
+        $this->namespaceToVendor[$namespace] = $source;
+        $this->dependencies['vendor'][$source]['namespaces'] = array_unique($this->dependencies['vendor'][$source]['namespaces']);
     }
 
     /**
@@ -89,30 +98,24 @@ class DependenciesHolderHelper
         $fileSystem->dumpFile('dependencies.yml', $debug);
     }
 
-    private function trimFile($file)
-    {
-        return str_replace(getcwd(), '', $file);
-    }
-
     /**
      * @param string $className
-     * @return string
+     * @return array
+     * @throws InvalidGroupForClassNameException
      */
     public function getGroup($className)
     {
         if ($vendorName = $this->getVendorName($className)) {
             $identifier = $vendorName;
-            $type = self::TYPE_VENDOR;
         } else {
             try {
-                $identifier = $this->reflectionHelper->getBundleNamespace($className);
+                $identifier = $this->getBundleNamespace($className);
             } catch (InvalidBundleForClassNameException $exception) {
                 throw new InvalidGroupForClassNameException("Can not determine group for $className", 0, $exception);
             }
-            $type = self::TYPE_BUNDLE;
         }
 
-        return [$type, $identifier];
+        return $identifier;
     }
 
     /**
@@ -126,6 +129,28 @@ class DependenciesHolderHelper
             return $vendorName;
         }
 
-        return $this->reflectionHelper->getVendorName($className);
+        foreach ($this->namespaceToVendor as $namespace => $vendor) {
+            if (strpos($className, $namespace) === 0) {
+                return $vendor;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param string $className
+     * @return string
+     * @throws \Exception
+     */
+    private function getBundleNamespace($className)
+    {
+        $namespace =  preg_replace('/(.*?Bundle).*/', '$1', $className);
+        if ($className == $namespace) {
+            throw new InvalidBundleForClassNameException("Invalid bundle for $className");
+        }
+        $namespace = str_replace('\\', '\\\\', $namespace);
+
+        return $namespace;
     }
 }

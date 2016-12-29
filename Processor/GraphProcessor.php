@@ -1,10 +1,12 @@
 <?php
 namespace Kizilare\ServicesDebug\Processor;
 
+use Crosslend\ProviderBundle\Entity\Biw\validateCredentialRequest;
 use Kizilare\ServicesDebug\Helper\ConfigurationHelper;
 use Kizilare\ServicesDebug\Helper\DependenciesHolderHelper;
 use Kizilare\ServicesDebug\Helper\Dot;
 use Kizilare\ServicesDebug\Helper\Graph;
+use Pablodip\ModuleTestBundle\Tests\Module\PagerfantaControllerTest;
 use Symfony\Component\Filesystem\Filesystem;
 
 class GraphProcessor
@@ -68,15 +70,14 @@ class GraphProcessor
     {
         $this->graph = new Graph();
         $this->dot = new Dot($this->graph);
-        $total = 0;
-        $processed = 0;
-        foreach ($this->dependencies as $className => $info) {
-            $total++;
-            if ($this->isAllowedDefinition($info)) {
-                $processed++;
-                $this->addFile($info);
-            }
+        foreach ($this->dependencies['source'] as $className => $info) {
+            $this->addFile($info);
         }
+        /*if (!$this->skipVendors) {
+            foreach ($this->dependencies['vendor'] as $vendor => $info) {
+                $this->addVendor($vendor, $info);
+            }
+        }*/
         $this->clearIsolatedNodes();
         $this->writeGraph();
     }
@@ -89,34 +90,36 @@ class GraphProcessor
     {
         $this->graph->addNode($info['group']);
         $this->dot->setNodeOptions($info['group'], ['border' => 'red']);
-        $this->addDependencies($info);
-    }
-
-    /**
-     * @param array $info
-     */
-    private function addDependencies(array $info)
-    {
         if (!empty($info['dependencies'])) {
-            foreach ($info['dependencies'] as $targetClass) {
-                if (!isset($this->dependencies[$targetClass])) {
-                    throw new \Exception("Can not find related class for $targetClass");
-                } else {
-                    if ($this->isAllowedDefinition($this->dependencies[$targetClass])) {
-                        $this->addEdge($info['group'], $this->dependencies[$targetClass]['group']);
-                    }
+            foreach ($info['dependencies'] as $targetGroup) {
+                if ($this->isAllowedDefinition($targetGroup)) {
+                    $this->addEdge($info['group'], $targetGroup);
                 }
             }
         }
     }
 
     /**
+     * @param string $vendor
      * @param array $info
+     */
+    private function addVendor($vendor, array $info)
+    {
+        $this->graph->addNode($vendor);
+        if (!empty($info['requires'])) {
+            foreach ($info['requires'] as $targetVendor) {
+                $this->addEdge($vendor, $targetVendor);
+            }
+        }
+    }
+
+    /**
+     * @param string $target
      * @return bool
      */
-    private function isAllowedDefinition(array $info)
+    private function isAllowedDefinition($target)
     {
-        if ($this->skipVendors && $info['type'] == DependenciesHolderHelper::TYPE_VENDOR) {
+        if ($this->skipVendors && isset($this->dependencies['vendor'][$target])) {
             return false;
         }
 
@@ -139,6 +142,7 @@ class GraphProcessor
     {
         $emptyNodes = $this->graph->getEmptyNodes();
         foreach ($emptyNodes as $emptyNode) {
+            echo "Empty " . $emptyNode . PHP_EOL;
             $this->graph->removeNode($emptyNode);
         }
     }
