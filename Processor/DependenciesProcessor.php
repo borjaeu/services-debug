@@ -85,34 +85,43 @@ class DependenciesProcessor
 <title>Dependencies reversed</title>
 <style>
     * { font-family:courier,monospace; font-size:11px; }
-    h2 { background-color: lightgrey; }
+    h2 { background-color: lightgrey; clear: both; }
+    h3 { margin: 0; }
+    p { margin: 0; background-color: lightyellow; padding: 2px; }
 </style>
 </head>
 <body>
+
 HTML;
         foreach ($this->reverseDependencies as $source => $targets) {
             $html .= <<<HTML
-<h2>$source</h2>
+<h2>$source dependencies</h2>
+<div>
 
 HTML;
             foreach ($targets as $target => $dependencies) {
                 $html .= <<<HTML
-<h3>$target</h3>
-<ul>
+    <h3>$target uses</h3>
+    <ul>
 
 HTML;
                 foreach ($dependencies as $dependency) {
                     $html .= <<<HTML
-    <li>{$dependency['target']} in <a href="phpstorm://open?file=/Users/user/local-env/backend/unicorn/{$dependency['file']}">{$dependency['source']}</a></li>
+        <li>{$dependency['target']} in <a href="phpstorm://open?file=/Users/user/local-env/backend/unicorn/{$dependency['file']}">{$dependency['source']}</a></li>
 
 HTML;
                 }
                 $html .= <<<HTML
-</ul>
+    </ul>
 
 HTML;
 
             }
+            $html .= <<<HTML
+</div>
+
+HTML;
+
         }
 
         $html .= <<<HTML

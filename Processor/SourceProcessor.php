@@ -56,24 +56,24 @@ class SourceProcessor
         $count = 0;
         /** @var File $file */
         foreach ($finder as $file) {
-            $fileInfo = new FileParser(file_get_contents($file->getRealPath()));
+            $fileInfo = new FileParser(file_get_contents($file->getRealPath()), 0);
             echo $count++ . '/' . $total . ' ' . $file->getRealPath() . PHP_EOL;
             $metadata = $fileInfo->getMetadata();
-            foreach ($metadata['import'] as $class) {
-                if (empty($class)) {
+            foreach ($metadata['import'] as $importedClass) {
+                if (empty($importedClass)) {
                     print_r($metadata);
                 }
-                $class = ltrim($class, '\\');
+                $importedClass = ltrim($importedClass, '\\');
                 if (empty($metadata['class'])) {
                     print_r($metadata);
                     throw new \UnexpectedValueException("Unexpected class for " . $file->getRealPath());
                 }
-                if ($ignoreSingleClasses && strpos($class, '\\') === false) {
+                if ($ignoreSingleClasses && strpos($importedClass, '\\') === false) {
                     continue;
                 }
                 $this->dependenciesHolder->add(
                     $metadata['namespace'] . '\\' . $metadata['class'],
-                    $class
+                    $importedClass
                 );
             }
         }

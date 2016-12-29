@@ -89,18 +89,16 @@ class GraphProcessor
     {
         $this->graph->addNode($info['group']);
         $this->dot->setNodeOptions($info['group'], ['border' => 'red']);
-        $this->addDependencies($info, 'import');
-        $this->addDependencies($info, 'injection');
+        $this->addDependencies($info);
     }
 
     /**
      * @param array $info
-     * @param string $type
      */
-    private function addDependencies(array $info, $type)
+    private function addDependencies(array $info)
     {
-        if (!empty($info['dependencies'][$type])) {
-            foreach ($info['dependencies'][$type] as $targetClass) {
+        if (!empty($info['dependencies'])) {
+            foreach ($info['dependencies'] as $targetClass) {
                 if (!isset($this->dependencies[$targetClass])) {
                     throw new \Exception("Can not find related class for $targetClass");
                 } else {

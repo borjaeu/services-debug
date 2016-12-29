@@ -3,6 +3,10 @@ namespace Kizilare\ServicesDebug\Processor;
 
 class FileParser
 {
+    const OPTION_CALLS = 1;
+    const OPTION_METHODS = 2;
+    const OPTION_DEBUG = 4;
+
     const TOKEN = 0;
     const CODE = 1;
     const LINE = 2;
@@ -33,10 +37,18 @@ class FileParser
     private $aliases;
 
     /**
-     * @param string $code
+     * @var int
      */
-    public function __construct($code)
+    private $options;
+
+
+    /**
+     * @param string $code
+     * @param int $options
+     */
+    public function __construct($code, $options = 3)
     {
+        $this->options = $options;
         $this->metadata = [
             'namespace' => '',
             'class' => '',
@@ -131,13 +143,17 @@ class FileParser
                 }
                 break;
             case T_OBJECT_OPERATOR:
-                $this->processCall();
+                if ($this->options & self::OPTION_CALLS) {
+                    $this->processCall();
+                }
                 break;
             case T_FUNCTION:
             case T_PUBLIC:
             case T_PROTECTED:
             case T_PRIVATE:
-                $this->processMethod();
+                if ($this->options & self::OPTION_METHODS) {
+                    $this->processMethod();
+                }
                 break;
             case T_WHITESPACE:
                 break;
@@ -223,7 +239,9 @@ class FileParser
 
     private function debugToken($message)
     {
-        //printf('%s: %s [%s] %s %s', $this->getTokenLine(), $message, $this->getTokenName(), $this->getTokenCode(), PHP_EOL);
+        if ($this->options & self::OPTION_DEBUG) {
+            printf('%s: %s [%s] %s %s', $this->getTokenLine(), $message, $this->getTokenName(), $this->getTokenCode(), PHP_EOL);
+        }
     }
 
     /**
@@ -246,9 +264,9 @@ class FileParser
         $alias = array_shift($chunks);
         if (empty($alias)) {
             $this->metadata['import'][] = $namespace;
-        } else if (isset($this->aliases[$alias])) {
+        } elseif (isset($this->aliases[$alias])) {
             $this->metadata['import'][] = $this->aliases[$alias] . '\\' . implode('\\', $chunks);
-            while($key = array_search($this->aliases[$alias], $this->metadata['import'])) {
+            while ($key = array_search($this->aliases[$alias], $this->metadata['import'])) {
                 unset($this->metadata['import'][$key]);
             }
         } else {
