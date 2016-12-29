@@ -13,6 +13,9 @@
     },
     "require": {
         "php": ">=5.3.3",
-        "symfony/symfony": "2.*"
+        "symfony/console": "^3.2",
+        "symfony/yaml": "^3.2",
+        "symfony/finder": "^3.2",
+        "symfony/filesystem": "^3.2"
     }
 }

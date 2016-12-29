@@ -49,12 +49,15 @@ class GraphProcessor
     /**
      * @param ConfigurationHelper $configuration
      * @param DependenciesHolderHelper $dependenciesHolder
-     * @return array
      */
-    public function build(ConfigurationHelper $configuration, DependenciesHolderHelper $dependenciesHolder)
+    public function __construct(ConfigurationHelper $configuration, DependenciesHolderHelper $dependenciesHolder)
     {
         $this->configuration = $configuration;
         $this->dependencies = $dependenciesHolder->getDependencies();
+    }
+
+    public function build()
+    {
         $this->skipVendors = false;
         $this->outputFile = 'dependencies_vendors';
         $this->buildGraph();

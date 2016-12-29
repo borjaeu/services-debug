@@ -9,11 +9,6 @@ use Symfony\Component\HttpFoundation\File\File;
 class VendorProcessor
 {
     /**
-     * @var string
-     */
-    private $rootDirectory;
-
-    /**
      * @var ConfigurationHelper
      */
     private $configuration;
@@ -24,29 +19,20 @@ class VendorProcessor
     private $dependenciesHolder;
 
     /**
-     * @param string $rootDir
-     */
-    public function __construct($rootDir)
-    {
-        $this->rootDirectory = realpath($rootDir.'/../');
-    }
-
-    /**
      * @param ConfigurationHelper $configuration
      * @param DependenciesHolderHelper $dependenciesHolder
-     * @return array
      */
-    public function processSource(ConfigurationHelper $configuration, DependenciesHolderHelper $dependenciesHolder)
+    public function __construct(ConfigurationHelper $configuration, DependenciesHolderHelper $dependenciesHolder)
     {
         $this->configuration = $configuration;
         $this->dependenciesHolder = $dependenciesHolder;
         $this->loadVendors();
     }
 
-    private function loadVendors()
+    public function loadVendors()
     {
         $finder = new Finder();
-        $finder->files()->name('composer.json')->in($this->rootDirectory . DIRECTORY_SEPARATOR . 'vendor');
+        $finder->files()->name('composer.json')->in($this->configuration->get('vendor'));
         $total = $finder->count();
         $count = 0;
         /** @var File $file */

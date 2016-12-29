@@ -29,7 +29,7 @@ class DependenciesHolderHelper
     /**
      * @param ConfigurationHelper $configuration
      */
-    public function setConfiguration(ConfigurationHelper $configuration)
+    public function __construct(ConfigurationHelper $configuration)
     {
         $this->configuration = $configuration;
     }

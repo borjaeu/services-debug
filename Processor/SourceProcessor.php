@@ -9,11 +9,6 @@ use Symfony\Component\HttpFoundation\File\File;
 class SourceProcessor
 {
     /**
-     * @var string
-     */
-    private $rootDirectory;
-
-    /**
      * @var ConfigurationHelper
      */
     private $configuration;
@@ -24,31 +19,21 @@ class SourceProcessor
     private $dependenciesHolder;
 
     /**
-     * @param string $rootDir
-     */
-    public function __construct($rootDir)
-    {
-        $this->rootDirectory = realpath($rootDir.'/../');
-    }
-
-    /**
      * @param ConfigurationHelper $configuration
      * @param DependenciesHolderHelper $dependenciesHolder
-     * @return array
      */
-    public function processSource(ConfigurationHelper $configuration, DependenciesHolderHelper $dependenciesHolder)
+    public function __construct(ConfigurationHelper $configuration, DependenciesHolderHelper $dependenciesHolder)
     {
         $this->configuration = $configuration;
         $this->dependenciesHolder = $dependenciesHolder;
-        $this->loadImports();
     }
 
-    private function loadImports()
+    public function loadImports()
     {
         $ignoreSingleClasses = $this->configuration->get('ignore_simple_classes', false);
 
         $finder = new Finder();
-        $finder->files()->name('*.php')->in($this->rootDirectory . DIRECTORY_SEPARATOR . $this->configuration->get('source'));
+        $finder->files()->name('*.php')->in($this->configuration->get('source'));
         foreach ($this->configuration->getArray('ignored_dirs') as $dir) {
             $finder->exclude($dir);
         }

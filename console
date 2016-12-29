@@ -1,0 +1,19 @@
+#!/usr/bin/env php
+<?php
+require_once __DIR__ . '/vendor/autoload.php';
+
+use Kizilare\ServicesDebug\Command\FileParseCommand;
+use Kizilare\ServicesDebug\Command\DependenciesFinderCommand;
+use Kizilare\ServicesDebug\Command\MethodsUsesCommand;
+use Kizilare\ServicesDebug\Command\DependenciesProcessCommand;
+use Kizilare\ServicesDebug\Command\DependenciesGraphCommand;
+use Symfony\Component\Console\Application;
+
+$application = new Application();
+
+$application->add(new FileParseCommand());
+$application->add(new DependenciesFinderCommand());
+$application->add(new MethodsUsesCommand());
+$application->add(new DependenciesProcessCommand());
+$application->add(new DependenciesGraphCommand());
+$application->run();

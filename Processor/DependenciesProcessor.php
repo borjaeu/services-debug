@@ -27,22 +27,21 @@ class DependenciesProcessor
      * @param ConfigurationHelper $configuration
      * @param DependenciesHolderHelper $dependenciesHolder
      */
-    public function build(ConfigurationHelper $configuration, DependenciesHolderHelper $dependenciesHolder)
+    public function __construct(ConfigurationHelper $configuration, DependenciesHolderHelper $dependenciesHolder)
     {
         $this->configuration = $configuration;
         $this->dependencies = $dependenciesHolder->getDependencies();
-        $this->processDependencies();
-        $this->writeToFile();
     }
 
     /**
      * {@inheritdoc}
      */
-    private function processDependencies()
+    public function processDependencies()
     {
         foreach ($this->dependencies['source'] as $className => $info) {
             $this->addDependencies($className, $info);
         }
+        $this->writeToFile();
     }
 
     private function addDependencies($source, array $info)
