@@ -3,6 +3,7 @@ namespace Kizilare\ServicesDebug\Helper;
 
 use Kizilare\ServicesDebug\Exception\InvalidBundleForClassNameException;
 use Kizilare\ServicesDebug\Exception\InvalidGroupForClassNameException;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Yaml\Yaml;
 
@@ -27,11 +28,18 @@ class DependenciesHolderHelper
     private $namespaceToVendor = [];
 
     /**
-     * @param ConfigurationHelper $configuration
+     * @var LoggerInterface
      */
-    public function __construct(ConfigurationHelper $configuration)
+    private $logger;
+
+    /**
+     * @param ConfigurationHelper $configuration
+     * @param LoggerInterface $logger
+     */
+    public function __construct(ConfigurationHelper $configuration, LoggerInterface $logger)
     {
         $this->configuration = $configuration;
+        $this->logger = $logger;
     }
 
     public function load($file)

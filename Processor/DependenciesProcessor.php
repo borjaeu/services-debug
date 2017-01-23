@@ -3,6 +3,7 @@ namespace Kizilare\ServicesDebug\Processor;
 
 use Kizilare\ServicesDebug\Helper\ConfigurationHelper;
 use Kizilare\ServicesDebug\Helper\DependenciesHolderHelper;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Yaml\Yaml;
 
@@ -24,13 +25,19 @@ class DependenciesProcessor
     private $reverseDependencies;
 
     /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
      * @param ConfigurationHelper $configuration
      * @param DependenciesHolderHelper $dependenciesHolder
      */
-    public function __construct(ConfigurationHelper $configuration, DependenciesHolderHelper $dependenciesHolder)
+    public function __construct(ConfigurationHelper $configuration, DependenciesHolderHelper $dependenciesHolder, LoggerInterface $logger)
     {
         $this->configuration = $configuration;
         $this->dependencies = $dependenciesHolder->getDependencies();
+        $this->logger = $logger;
     }
 
     /**

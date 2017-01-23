@@ -1,11 +1,12 @@
 <?php
 namespace Kizilare\ServicesDebug\Processor;
 
+use Psr\Log\LoggerInterface;
+
 class FileParser
 {
     const OPTION_CALLS = 1;
     const OPTION_METHODS = 2;
-    const OPTION_DEBUG = 4;
 
     const TOKEN = 0;
     const CODE = 1;
@@ -41,19 +42,26 @@ class FileParser
      */
     private $options;
 
+    /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
 
     /**
      * @param string $code
      * @param int $options
+     * @param LoggerInterface $logger
      */
-    public function __construct($code, $options = 3)
+    public function __construct($code, $options = 3, LoggerInterface $logger)
     {
+        $this->logger = $logger;
         $this->options = $options;
         $this->metadata = [
             'namespace' => '',
-            'class' => '',
-            'import' => [],
-            'methods' => [],
+            'class'     => '',
+            'import'    => [],
+            'methods'   => [],
             'calls'     => [],
         ];
         $this->tokens = [];
@@ -66,6 +74,7 @@ class FileParser
         while ($this->next()) {
             $this->processToken();
         }
+        $this->metadata['import'] = array_unique($this->metadata['import']);
     }
 
     /**
@@ -86,6 +95,15 @@ class FileParser
     private function prev($step = 1)
     {
         $this->index -= $step;
+    }
+
+    private function backWhile(array $infoTokens)
+    {
+        while(in_array($this->getTokenType(), $infoTokens)) {
+            $this->debugToken('Going back');
+            $this->prev();
+        }
+        $this->next();
     }
 
     private function getTokenType()
@@ -117,6 +135,7 @@ class FileParser
             case T_USE:
                 if (!$this->inClass) {
                     $namespace = $this->getInfo([T_STRING, T_NS_SEPARATOR], [T_WHITESPACE, T_AS]);
+                    $this->debugToken("Namespace use '$namespace'");
                     $alias = $this->getInfo([T_STRING], [T_WHITESPACE, T_AS]);
                     if ($namespace) {
                         if (!$alias) {
@@ -129,7 +148,7 @@ class FileParser
                 break;
             case T_NS_SEPARATOR:
                 if ($this->inClass) {
-                    $this->prev(2);
+                    $this->backWhile([T_STRING, T_NS_SEPARATOR]);
                     $namespace = $this->getInfo([T_STRING, T_NS_SEPARATOR], [T_WHITESPACE, T_AS]);
                     $this->addImportFromUsage($namespace);
                 }
@@ -157,8 +176,6 @@ class FileParser
                 break;
             case T_WHITESPACE:
                 break;
-            default:
-                $this->debugToken('File, nothing to do');
         }
     }
 
@@ -237,11 +254,14 @@ class FileParser
         }
     }
 
+    /**
+     * @param string $message
+     */
     private function debugToken($message)
     {
-        if ($this->options & self::OPTION_DEBUG) {
-            printf('%s: %s [%s] %s %s', $this->getTokenLine(), $message, $this->getTokenName(), $this->getTokenCode(), PHP_EOL);
-        }
+        $this->logger->debug(
+            sprintf('#%s: %s [%s] %s', $this->getTokenLine(), $message, $this->getTokenName(), $this->getTokenCode())
+        );
     }
 
     /**
@@ -260,18 +280,27 @@ class FileParser
      */
     private function addImportFromUsage($namespace)
     {
+        $namespace = trim($namespace, '\\');
+        $this->logger->debug("Adding from usage '$namespace'");
         $chunks = explode('\\', $namespace);
         $alias = array_shift($chunks);
+        $this->logger->debug("Alias '$alias'");
         if (empty($alias)) {
             $this->metadata['import'][] = $namespace;
-        } elseif (isset($this->aliases[$alias])) {
+        } elseif (isset($this->aliases[$alias]) && count($chunks)) {
             $this->metadata['import'][] = $this->aliases[$alias] . '\\' . implode('\\', $chunks);
             while ($key = array_search($this->aliases[$alias], $this->metadata['import'])) {
                 unset($this->metadata['import'][$key]);
             }
         } else {
             $left = implode('\\', $chunks);
-            $this->metadata['import'][] = $left;
+         //   if ($left) {
+         //       $this->logger->debug("Adding from usage '$namespace': $left");
+          //      $this->metadata['import'][] = $left;
+         //= //  } else {
+                $this->logger->debug("Adding from usage '$namespace'");
+                $this->metadata['import'][] = $namespace;
+           // }
         }
     }
 }
